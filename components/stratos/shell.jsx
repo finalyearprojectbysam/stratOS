@@ -88,7 +88,8 @@ function UserFooter({ collapsed }) {
         <DropdownMenuContent align="end" className="w-56 border-white/10 bg-popover">
           <DropdownMenuLabel className="text-xs text-muted-foreground">{user?.email}</DropdownMenuLabel>
           <DropdownMenuSeparator className="bg-white/10" />
-          <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer"><Settings className="mr-2 h-4 w-4" />Settings</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate('/my-profile')} className="cursor-pointer"><UserCircle className="mr-2 h-4 w-4" />My Profile</DropdownMenuItem>
+          {role !== 'employee' && <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer"><Settings className="mr-2 h-4 w-4" />Settings</DropdownMenuItem>}
           <DropdownMenuItem onClick={signOut} className="cursor-pointer text-red-300 focus:text-red-300"><LogOut className="mr-2 h-4 w-4" />Logout</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

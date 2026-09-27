@@ -21,7 +21,7 @@ import { MeetingsPage, SocialMediaPage, MyProfilePage, OnboardingWizard } from '
 import { BrandMark } from '@/components/stratos/primitives'
 
 // Routes employees may NOT access (owner-only). Enforced here + hidden in nav + RLS-ready.
-const OWNER_ONLY_PREFIXES = ['/activity-log', '/team', '/clients', '/analysis', '/analysis-history']
+const OWNER_ONLY_PREFIXES = ['/activity-log', '/team', '/clients', '/analysis', '/analysis-history', '/settings']
 
 function Router({ segments }) {
   const [a, b, c] = segments
