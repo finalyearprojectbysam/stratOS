@@ -63,6 +63,18 @@ function App() {
 
   const refreshSession = useCallback(async () => { const s = await authService.getSession(); setSession(s || null); return s }, [])
 
+  // OAuth safety net: if Supabase returns the ?code to the app root (e.g. its
+  // Site URL) instead of /auth/callback, forward it so the callback route can
+  // exchange it for a session. redirectTo itself is always the dynamic
+  // ${window.location.origin}/auth/callback (never hardcoded).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    if (sp.has('code') && window.location.pathname !== '/auth/callback') {
+      window.location.replace('/auth/callback' + window.location.search)
+    }
+  }, [])
+
   useEffect(() => { refreshSession() }, [refreshSession])
   useEffect(() => { if (!window.location.hash) navigate('/dashboard') }, []) // eslint-disable-line
 

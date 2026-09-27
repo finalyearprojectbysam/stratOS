@@ -161,6 +161,23 @@ backend:
         -working: true
         -agent: "testing"
         -comment: "✅ PASSED - Health endpoint returns HTTP 200 with status='ok', service='STRATOS', phase=3. Base endpoint working correctly."
+  - task: "OAuth callback route /auth/callback handles code exchange and redirects into the app"
+    implemented: true
+    working: true
+    file: "app/auth/callback/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Bugfix for OAuth redirect (user reported redirect to localhost:3000 → ERR_CONNECTION_REFUSED). Root cause is Supabase Site-URL fallback (config, user side); code already uses dynamic ${window.location.origin}/auth/callback (no hardcoded localhost). Verify the server route: (1) GET /auth/callback with NO query params → HTTP 3xx redirect whose Location is the app origin root '/'. (2) GET /auth/callback?code=invalid_code → still a 3xx redirect to '/' (exchange fails gracefully, NO 500/crash). (3) Location host must equal the request host (not localhost). A real valid code cannot be tested without a live Google login."
+        -working: false
+        -agent: "testing"
+        -comment: "❌ CRITICAL BUG CONFIRMED - OAuth callback redirects to internal address instead of external URL. Test results: (1) GET /auth/callback (no params) returns HTTP 307 redirect ✅, path is '/' ✅, BUT Location header is 'https://0.0.0.0:3000/' instead of 'https://agent-workflow-47.preview.emergentagent.com/' ❌. (2) GET /auth/callback?code=invalid_code_123 returns HTTP 307 redirect (graceful failure, no crash) ✅, BUT same Location issue: 'https://0.0.0.0:3000/' ❌. ROOT CAUSE: Line 29 uses 'url.origin' from request.url, which reflects the internal service address (0.0.0.0:3000) not the external URL. In Next.js behind a proxy, request.url contains the internal address. FIX NEEDED: Use request headers (Host or X-Forwarded-Host) to construct the redirect URL, or use NEXT_PUBLIC_BASE_URL from env. This is exactly the bug user reported."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ BUGFIX VERIFIED - OAuth callback now correctly redirects to external URL. Test results: (1) GET /auth/callback (no params) returns HTTP 307 redirect ✅, Location header is 'https://agent-workflow-47.preview.emergentagent.com/' ✅ (NOT 0.0.0.0:3000), path is '/' ✅, host matches request host ✅. (2) GET /auth/callback?code=invalid_code_123 returns HTTP 307 redirect ✅ (graceful failure, no crash), Location header is 'https://agent-workflow-47.preview.emergentagent.com/' ✅. FIX APPLIED: Lines 29-38 now extract x-forwarded-proto and x-forwarded-host headers, detect internal hosts (0.0.0.0, localhost, 127.0.0.1), and fall back to NEXT_PUBLIC_BASE_URL env var when behind proxy. The redirect now uses the correct external origin. Bug resolved."
 
 frontend:
   - task: "Owner Google OAuth login card (activates with Supabase configured)"
@@ -178,21 +195,21 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.1"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "GET /api/agents returns registry metadata + workflow stages"
-    - "POST /api/agents/run { agentId } runs a single agent (Mock provider)"
-    - "POST /api/agents/run {} runs the full 12-stage workflow (Mock provider)"
-    - "GET /api/ base health endpoint still works"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Please test ONLY the new backend endpoints in app/api/[[...path]]/route.js: GET /api/agents, POST /api/agents/run (single agent + full workflow), and GET /api/ health. These validate the new modular 11-agent architecture imports and runs server-side with the Mock provider. No auth is required for these endpoints. Do not test the frontend."
+    -message: "OAuth redirect bugfix. Please test ONLY the server route app/auth/callback/route.js. Verify: (1) GET {origin}/auth/callback (no params) returns a 3xx redirect with Location pointing to the app root '/' on the SAME host as the request (must NOT be localhost). (2) GET {origin}/auth/callback?code=invalid returns a 3xx redirect to '/' and does NOT 500/crash (the code exchange fails gracefully). Use the external base URL from NEXT_PUBLIC_BASE_URL. A real Google code cannot be tested here — only route robustness. Do not test the frontend."
     -agent: "testing"
     -message: "✅ ALL BACKEND TESTS PASSED (6/6). Tested all new agent endpoints: (1) GET /api/agents returns correct registry with 11 agents, 12 stages, 7 workflow stages; (2) POST /api/agents/run with agentId='seo' and 'ceo' both return completed results with mock provider; (3) Unknown agentId correctly returns 500 error; (4) Full workflow execution returns 12 completed results with proper events; (5) Health endpoint working. The entire modular 11-agent architecture (lib/agents/**, lib/orchestration/**, lib/gemini/**) imports and runs successfully server-side with Mock provider. No issues found."
+    -agent: "testing"
+    -message: "❌ OAUTH CALLBACK BUG CONFIRMED (2/2 tests failed). The OAuth callback route redirects to the INTERNAL address 'https://0.0.0.0:3000/' instead of the external app URL 'https://agent-workflow-47.preview.emergentagent.com/'. This is exactly the bug the user reported. Root cause: Line 29 of app/auth/callback/route.js uses 'url.origin' from request.url, which contains the internal service address when behind a proxy. The route correctly returns 307 redirects and handles invalid codes gracefully (no crashes), but the Location header points to the wrong host. Fix needed: Use request headers (Host/X-Forwarded-Host) or NEXT_PUBLIC_BASE_URL env var to construct the redirect URL."
+    -agent: "testing"
+    -message: "✅ OAUTH CALLBACK BUGFIX VERIFIED (2/2 tests passed). Re-tested after bugfix. Both test cases now pass: (1) GET /auth/callback (no params) returns HTTP 307 redirect with Location='https://agent-workflow-47.preview.emergentagent.com/' (external URL, NOT 0.0.0.0:3000). (2) GET /auth/callback?code=invalid_code_123 returns HTTP 307 redirect with same external Location (graceful failure, no crash). The fix correctly uses x-forwarded-proto/x-forwarded-host headers and falls back to NEXT_PUBLIC_BASE_URL when behind proxy. All backend tests passing (8/8). OAuth redirect bug is resolved."

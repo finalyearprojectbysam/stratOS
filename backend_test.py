@@ -8,9 +8,11 @@ import requests
 import json
 import sys
 from typing import Dict, Any
+from urllib.parse import urlparse
 
 # Base URL from environment
 BASE_URL = "https://agent-workflow-47.preview.emergentagent.com/api"
+APP_ORIGIN = "https://agent-workflow-47.preview.emergentagent.com"
 
 def print_test_header(test_name: str):
     """Print a formatted test header"""
@@ -371,12 +373,135 @@ def test_get_health():
         print_result(False, f"Exception occurred: {str(e)}")
         return False
 
+def test_oauth_callback_no_params():
+    """
+    Test 7: GET /auth/callback (no query params)
+    Expected: HTTP 3xx redirect with Location header pointing to '/' on the same host
+    Must NOT redirect to localhost
+    """
+    print_test_header("GET /auth/callback - No Query Params")
+    
+    try:
+        url = f"{APP_ORIGIN}/auth/callback"
+        # Do NOT follow redirects - we want to inspect the raw redirect response
+        response = requests.get(url, allow_redirects=False, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        print(f"Headers: {dict(response.headers)}")
+        
+        # Check for 3xx redirect status
+        if not (300 <= response.status_code < 400):
+            print_result(False, f"Expected 3xx redirect status, got {response.status_code}")
+            return False
+        print_result(True, f"Status code is 3xx redirect: {response.status_code}")
+        
+        # Check Location header exists
+        location = response.headers.get('Location')
+        if not location:
+            print_result(False, "No Location header in redirect response")
+            return False
+        print_result(True, f"Location header present: {location}")
+        
+        # Parse the Location URL
+        parsed_location = urlparse(location)
+        parsed_origin = urlparse(APP_ORIGIN)
+        
+        # Check that Location points to '/'
+        if parsed_location.path != '/':
+            print_result(False, f"Expected Location path to be '/', got '{parsed_location.path}'")
+            return False
+        print_result(True, "Location path is '/'")
+        
+        # Check that Location host matches request host (not localhost)
+        location_host = parsed_location.netloc or parsed_origin.netloc
+        request_host = parsed_origin.netloc
+        
+        if location_host != request_host:
+            print_result(False, f"Location host '{location_host}' does not match request host '{request_host}'")
+            return False
+        print_result(True, f"Location host matches request host: {location_host}")
+        
+        # Verify NOT localhost
+        if 'localhost' in location.lower() or '127.0.0.1' in location:
+            print_result(False, f"Location contains localhost/127.0.0.1: {location}")
+            return False
+        print_result(True, "Location does NOT contain localhost or 127.0.0.1")
+        
+        print_result(True, "GET /auth/callback (no params) test PASSED")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception occurred: {str(e)}")
+        return False
+
+def test_oauth_callback_invalid_code():
+    """
+    Test 8: GET /auth/callback?code=invalid_code_123
+    Expected: HTTP 3xx redirect to '/' (NOT 500 or crash)
+    The invalid code exchange should fail gracefully and still redirect
+    """
+    print_test_header("GET /auth/callback - Invalid Code")
+    
+    try:
+        url = f"{APP_ORIGIN}/auth/callback?code=invalid_code_123"
+        # Do NOT follow redirects - we want to inspect the raw redirect response
+        response = requests.get(url, allow_redirects=False, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        print(f"Headers: {dict(response.headers)}")
+        
+        # Check for 3xx redirect status (NOT 500)
+        if not (300 <= response.status_code < 400):
+            print_result(False, f"Expected 3xx redirect status, got {response.status_code}. Route should fail gracefully, not crash.")
+            if response.status_code == 500:
+                print(f"Response body: {response.text}")
+            return False
+        print_result(True, f"Status code is 3xx redirect (graceful failure): {response.status_code}")
+        
+        # Check Location header exists
+        location = response.headers.get('Location')
+        if not location:
+            print_result(False, "No Location header in redirect response")
+            return False
+        print_result(True, f"Location header present: {location}")
+        
+        # Parse the Location URL
+        parsed_location = urlparse(location)
+        parsed_origin = urlparse(APP_ORIGIN)
+        
+        # Check that Location points to '/'
+        if parsed_location.path != '/':
+            print_result(False, f"Expected Location path to be '/', got '{parsed_location.path}'")
+            return False
+        print_result(True, "Location path is '/'")
+        
+        # Check that Location host matches request host
+        location_host = parsed_location.netloc or parsed_origin.netloc
+        request_host = parsed_origin.netloc
+        
+        if location_host != request_host:
+            print_result(False, f"Location host '{location_host}' does not match request host '{request_host}'")
+            return False
+        print_result(True, f"Location host matches request host: {location_host}")
+        
+        # Verify NOT localhost
+        if 'localhost' in location.lower() or '127.0.0.1' in location:
+            print_result(False, f"Location contains localhost/127.0.0.1: {location}")
+            return False
+        print_result(True, "Location does NOT contain localhost or 127.0.0.1")
+        
+        print_result(True, "GET /auth/callback (invalid code) test PASSED")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception occurred: {str(e)}")
+        return False
+
 def main():
     """Run all backend tests"""
     print("\n" + "="*80)
-    print("STRATOS BACKEND API TESTS - Modular 11-Agent Architecture")
+    print("STRATOS BACKEND API TESTS - Modular 11-Agent Architecture + OAuth")
     print("="*80)
     print(f"Base URL: {BASE_URL}")
+    print(f"App Origin: {APP_ORIGIN}")
     print("="*80)
     
     results = {}
@@ -388,6 +513,8 @@ def main():
     results['POST /api/agents/run (unknown)'] = test_post_agents_run_unknown_agent()
     results['POST /api/agents/run (workflow)'] = test_post_agents_run_workflow()
     results['GET /api/ (health)'] = test_get_health()
+    results['GET /auth/callback (no params)'] = test_oauth_callback_no_params()
+    results['GET /auth/callback (invalid code)'] = test_oauth_callback_invalid_code()
     
     # Print summary
     print("\n" + "="*80)
