@@ -20,9 +20,24 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   Users, Search, Plus, MoreHorizontal, Eye, Pencil, Trash2, Sparkles, Globe, MapPin, Building2,
-  Instagram, Facebook, ArrowLeft, Loader2, Target as TargetIcon,
+  Instagram, Facebook, ArrowLeft, Loader2, Target as TargetIcon, AlertTriangle, CheckCircle2,
 } from 'lucide-react'
 import { fmtRelative, fmtDate } from '@/lib/format'
+
+// Phase 3: fields the AI agents rely on — flag which are missing so the team knows
+// exactly what client data to collect.
+const IMPORTANT_FIELDS = [
+  ['industry', 'Industry'], ['target_location', 'Location'], ['website_url', 'Website'],
+  ['google_business_url', 'Google Business'], ['instagram_url', 'Instagram'], ['facebook_url', 'Facebook'],
+  ['business_description', 'Description'], ['target_audience', 'Target Audience'],
+  ['business_goals', 'Goals'], ['current_channels', 'Channels'],
+]
+export function missingClientFields(c) {
+  return IMPORTANT_FIELDS.filter(([k]) => {
+    const v = c?.[k]
+    return Array.isArray(v) ? v.length === 0 : (v == null || String(v).trim() === '')
+  }).map(([, label]) => label)
+}
 
 // ---- Clients list ----------------------------------------------------------
 export function ClientsPage() {
@@ -87,9 +102,20 @@ export function ClientsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
+                {filtered.map((c) => {
+                  const gaps = missingClientFields(c)
+                  return (
                   <tr key={c.id} className="border-b border-white/5 transition hover:bg-white/[0.02]">
-                    <td className="px-6 py-3.5"><button onClick={() => navigate(`/clients/${c.id}`)} className="font-medium hover:text-primary">{c.business_name}</button></td>
+                    <td className="px-6 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => navigate(`/clients/${c.id}`)} className="font-medium hover:text-primary">{c.business_name}</button>
+                        {gaps.length > 0 && (
+                          <span title={`Missing: ${gaps.join(', ')}`} className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
+                            <AlertTriangle className="h-3 w-3" />{gaps.length} missing
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="hidden px-6 py-3.5 text-muted-foreground sm:table-cell">{c.industry || '—'}</td>
                     <td className="hidden px-6 py-3.5 text-muted-foreground md:table-cell">{c.target_location || '—'}</td>
                     <td className="hidden px-6 py-3.5 text-muted-foreground lg:table-cell">{c.website_url ? <a href={c.website_url} target="_blank" rel="noreferrer" className="hover:text-primary">{c.website_url.replace(/^https?:\/\//, '')}</a> : '—'}</td>
@@ -106,7 +132,8 @@ export function ClientsPage() {
                       </DropdownMenu>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -153,6 +180,8 @@ export function ClientDetailPage({ clientId }) {
     { icon: TargetIcon, label: 'Target Audience', value: client.target_audience },
   ]
 
+  const gaps = missingClientFields(client)
+
   return (
     <div className="space-y-6">
       <button onClick={() => navigate('/clients')} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Back to Clients</button>
@@ -176,6 +205,19 @@ export function ClientDetailPage({ clientId }) {
             <div className="mt-1.5 truncate text-sm font-medium">{i.link ? <a href={i.value} target="_blank" rel="noreferrer" className="text-primary hover:underline">{i.value}</a> : i.value}</div></GlowCard>
         ))}
       </div>
+
+      {gaps.length > 0 ? (
+        <GlowCard hover={false} className="border-amber-500/25 bg-amber-500/[0.04] p-5">
+          <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-300" /><h3 className="font-display font-semibold text-amber-100">Missing information ({gaps.length})</h3></div>
+          <p className="mt-1 text-sm text-amber-100/70">Collect these details to give the AI agents a complete picture for a stronger analysis.</p>
+          <div className="mt-3 flex flex-wrap gap-2">{gaps.map((g) => <span key={g} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">{g}</span>)}</div>
+          <Button variant="outline" className="mt-4 border-amber-500/30 text-amber-200 hover:bg-amber-500/10" onClick={() => navigate(`/clients/${client.id}/edit`)}><Pencil className="mr-2 h-4 w-4" />Complete profile</Button>
+        </GlowCard>
+      ) : (
+        <GlowCard hover={false} className="border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+          <div className="flex items-center gap-2 text-sm text-emerald-200"><CheckCircle2 className="h-4 w-4" />Complete profile — all key fields captured for AI analysis.</div>
+        </GlowCard>
+      )}
 
       {client.business_description && <GlowCard hover={false} className="p-5"><h3 className="font-display font-semibold">Business Description</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{client.business_description}</p></GlowCard>}
 

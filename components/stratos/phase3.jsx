@@ -25,12 +25,16 @@ const FF = ({ label, children }) => <div className="space-y-1.5"><Label classNam
 
 // ============================ NOTIFICATIONS BELL ============================
 export function NotificationsBell() {
-  const { navigate } = useApp()
+  const { navigate, role } = useApp()
   const [items, setItems] = useState([])
-  const load = () => notificationService.forMe().then(setItems).catch(() => {})
+  const load = () => meetingService.generateReminders().catch(() => {}).finally(() => notificationService.forMe().then(setItems).catch(() => {}))
   useEffect(() => { load(); const iv = setInterval(load, 15000); return () => clearInterval(iv) }, [])
   const unread = items.filter((n) => !n.is_read).length
-  const open = async (n) => { await notificationService.update(n.id, { is_read: true }); load(); navigate(n.resource_type === 'meeting' ? '/dashboard' : '/tasks') }
+  const open = async (n) => {
+    await notificationService.update(n.id, { is_read: true }); load()
+    const isMeeting = n.resource_type === 'meeting'
+    navigate(isMeeting ? (role === 'owner' ? '/meetings' : '/dashboard') : (role === 'owner' ? '/tasks' : '/tasks'))
+  }
   return (
     <DropdownMenu onOpenChange={(o) => { if (o) { notificationService.markAllRead().then(load) } }}>
       <DropdownMenuTrigger asChild>

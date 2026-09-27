@@ -12,9 +12,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-import { BookOpen, Search, Upload, FileText, Loader2, FolderOpen, Eye, Download, Trash2, FileDown, ExternalLink, Lock } from 'lucide-react'
+import { mdToHtml } from '@/lib/markdown'
+import { BookOpen, Search, Upload, FileText, Loader2, FolderOpen, Eye, Download, Trash2, FileDown, ExternalLink, Lock, Pencil, Save, X, Sparkles } from 'lucide-react'
 import { fmtDate } from '@/lib/format'
 
 const CATEGORIES = ['Marketing Frameworks', 'SEO Guidelines', 'Advertising', 'Branding', 'Agency SOPs', 'Case Studies', 'Templates']
@@ -26,7 +28,7 @@ export function KnowledgeBasePage() {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('all')
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', category: 'Templates' })
+  const [form, setForm] = useState({ title: '', description: '', category: 'Templates', notes: '' })
   const [file, setFile] = useState(null)
   const [saving, setSaving] = useState(false)
   const [reader, setReader] = useState(null)
@@ -40,10 +42,11 @@ export function KnowledgeBasePage() {
     if (!form.title && !file) { toast.error('Add a title or choose a file'); return }
     setSaving(true)
     try {
-      if (file) await knowledgeService.upload(file, form)
-      else await knowledgeService.create({ ...form, file_url: '#' })
+      const meta = { ...form, notes_md: form.notes?.trim() || null }
+      if (file) await knowledgeService.upload(file, meta)
+      else await knowledgeService.create({ title: meta.title, description: meta.description, category: meta.category, notes_md: meta.notes_md, file_url: '#' })
       activityService.log('Uploaded document', form.title || file?.name || 'Document')
-      toast.success('Document uploaded'); setOpen(false); setForm({ title: '', description: '', category: 'Templates' }); setFile(null); load()
+      toast.success('Document uploaded'); setOpen(false); setForm({ title: '', description: '', category: 'Templates', notes: '' }); setFile(null); load()
     } catch (e) { toast.error(e?.message || 'Upload failed') } finally { setSaving(false) }
   }
 
@@ -64,6 +67,7 @@ export function KnowledgeBasePage() {
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Title</Label><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Local SEO Checklist" className="input-dark" /></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Description</Label><Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Short description" className="input-dark" /></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Category</Label><Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}><SelectTrigger className="input-dark"><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1.5"><Label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="h-3 w-3 text-violet-300" />Formatted notes <span className="text-muted-foreground/60">(Markdown — # heading, **bold**, - list)</span></Label><Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={"## Overview\nKey points employees should read...\n\n- Step one\n- Step two"} className="input-dark min-h-[110px] font-mono text-[13px]" /></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">File</Label>
                   <button onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-left text-sm text-muted-foreground hover:border-white/25">
                     <Upload className="h-4 w-4" />{file ? file.name : 'Choose a file to upload'}
@@ -109,7 +113,7 @@ export function KnowledgeBasePage() {
                 </div>
                 <h3 className="mt-4 font-display font-semibold">{d.title}</h3>
                 <p className="mt-1 line-clamp-2 flex-1 text-sm text-muted-foreground">{d.description || 'No description provided.'}</p>
-                <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-muted-foreground"><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">{d.category}</span><span>{fmtDate(d.created_at)}</span></div>
+                <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-muted-foreground"><div className="flex items-center gap-1.5"><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">{d.category}</span>{d.notes_md && <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-violet-200"><Sparkles className="h-3 w-3" />Notes</span>}</div><span>{fmtDate(d.created_at)}</span></div>
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" variant="outline" className="h-8 flex-1 border-white/15 text-xs" onClick={() => setReader(d)}><Eye className="mr-1.5 h-3.5 w-3.5" />Read</Button>
                   <Button size="sm" variant="outline" className="h-8 flex-1 border-white/15 text-xs" onClick={() => { generateDocumentPDF(d, d.text_content); activityService.log('Downloaded document', d.title) }}><FileDown className="mr-1.5 h-3.5 w-3.5" />PDF</Button>
@@ -121,16 +125,33 @@ export function KnowledgeBasePage() {
       )}
       <p className="text-center text-xs text-muted-foreground/60">RAG-powered semantic search will be enabled in a future phase.</p>
 
-      <DocumentReader doc={reader} onClose={() => setReader(null)} />
+      <DocumentReader doc={reader} isOwner={isOwner} onClose={() => setReader(null)} onSaved={load} />
     </div>
   )
 }
 
-function DocumentReader({ doc, onClose }) {
+function DocumentReader({ doc, isOwner, onClose, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [notes, setNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  useEffect(() => { setEditing(false); setNotes(doc?.notes_md || '') }, [doc])
   if (!doc) return null
   const hasText = !!(doc.text_content && String(doc.text_content).trim())
   const hasFile = doc.file_url && doc.file_url !== '#'
   const isPdf = (doc.mime_type || '').includes('pdf') || /\.pdf$/i.test(doc.file_name || '')
+  const hasNotes = !!(doc.notes_md && String(doc.notes_md).trim())
+
+  const saveNotes = async () => {
+    setSavingNotes(true)
+    try {
+      await knowledgeService.update(doc.id, { notes_md: notes.trim() || null })
+      activityService.log('Updated document notes', doc.title)
+      toast.success('Notes saved')
+      doc.notes_md = notes.trim() || null
+      setEditing(false); onSaved && onSaved()
+    } catch (e) { toast.error('Could not save notes') } finally { setSavingNotes(false) }
+  }
+
   return (
     <Dialog open={!!doc} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-3xl border-white/10 bg-popover">
@@ -141,10 +162,25 @@ function DocumentReader({ doc, onClose }) {
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">{doc.category}</span>
           <span>{fmtDate(doc.created_at)}</span>
           {doc.file_name && <span className="truncate">· {doc.file_name}</span>}
+          {isOwner && !editing && (
+            <Button variant="ghost" size="sm" className="ml-auto h-7 text-xs text-muted-foreground hover:text-foreground" onClick={() => setEditing(true)}><Pencil className="mr-1.5 h-3.5 w-3.5" />{hasNotes ? 'Edit notes' : 'Add notes'}</Button>
+          )}
         </div>
         {doc.description && <p className="text-sm text-muted-foreground">{doc.description}</p>}
-        <div className="mt-1 max-h-[52vh] overflow-auto rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          {hasText ? (
+
+        <div className="mt-1 max-h-[52vh] space-y-4 overflow-auto rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          {editing ? (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="h-3 w-3 text-violet-300" />Formatted notes (Markdown)</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input-dark min-h-[220px] font-mono text-[13px]" placeholder={"## Overview\n**Key points** for the team...\n\n- First\n- Second"} />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setNotes(doc.notes_md || '') }}><X className="mr-1.5 h-4 w-4" />Cancel</Button>
+                <Button size="sm" onClick={saveNotes} disabled={savingNotes} className="bg-gradient-to-r from-blue-500 to-violet-600 text-white">{savingNotes ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}Save notes</Button>
+              </div>
+            </div>
+          ) : hasNotes ? (
+            <div className="prose-kb space-y-2 text-sm leading-relaxed text-foreground/90 [&_a]:break-words" dangerouslySetInnerHTML={{ __html: mdToHtml(doc.notes_md) }} />
+          ) : hasText ? (
             <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-foreground/90">{doc.text_content}</pre>
           ) : hasFile && isPdf ? (
             <iframe src={doc.file_url} title={doc.title} className="h-[48vh] w-full rounded-md bg-white" />
@@ -152,15 +188,23 @@ function DocumentReader({ doc, onClose }) {
             <div className="py-8 text-center">
               <Lock className="mx-auto h-8 w-8 text-muted-foreground/50" />
               <p className="mt-3 text-sm text-muted-foreground">No inline preview is available for this file type.</p>
-              <p className="text-xs text-muted-foreground/70">Use the PDF export below, or open the original file if stored.</p>
+              <p className="text-xs text-muted-foreground/70">{isOwner ? 'Add formatted notes above, or use the PDF export below.' : 'Use the PDF export below, or open the original file if stored.'}</p>
+            </div>
+          )}
+          {/* When notes exist, still let readers see the raw text preview below */}
+          {!editing && hasNotes && hasText && (
+            <div className="border-t border-white/10 pt-3">
+              <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Original file text</p>
+              <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-muted-foreground">{doc.text_content}</pre>
             </div>
           )}
         </div>
+
         <DialogFooter className="gap-2 sm:justify-between">
           {hasFile ? (
             <Button variant="outline" className="border-white/15" onClick={() => window.open(doc.file_url, '_blank')}><ExternalLink className="mr-2 h-4 w-4" />Open original</Button>
           ) : <span />}
-          <Button className="bg-gradient-to-r from-blue-500 to-violet-600 text-white" onClick={() => { generateDocumentPDF(doc, doc.text_content); activityService.log('Downloaded document', doc.title) }}><Download className="mr-2 h-4 w-4" />Download PDF</Button>
+          <Button className="bg-gradient-to-r from-blue-500 to-violet-600 text-white" onClick={() => { generateDocumentPDF(doc, doc.notes_md || doc.text_content); activityService.log('Downloaded document', doc.title) }}><Download className="mr-2 h-4 w-4" />Download PDF</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
