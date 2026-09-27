@@ -17,6 +17,7 @@ export const STATUS_META = {
   planning: { label: 'Planning', dot: 'bg-cyan-400', text: 'text-cyan-300', ring: 'bg-cyan-500/10 border-cyan-500/25' },
   pending: { label: 'Pending', dot: 'bg-amber-400', text: 'text-amber-300', ring: 'bg-amber-500/10 border-amber-500/25' },
   invited: { label: 'Invited', dot: 'bg-amber-400', text: 'text-amber-300', ring: 'bg-amber-500/10 border-amber-500/25' },
+  inactive: { label: 'Inactive', dot: 'bg-slate-400', text: 'text-slate-300', ring: 'bg-slate-500/10 border-slate-500/25' },
   draft: { label: 'Draft', dot: 'bg-slate-400', text: 'text-slate-300', ring: 'bg-slate-500/10 border-slate-500/25' },
   failed: { label: 'Failed', dot: 'bg-red-400', text: 'text-red-300', ring: 'bg-red-500/10 border-red-500/25' },
 }

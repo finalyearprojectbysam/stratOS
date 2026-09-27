@@ -17,6 +17,7 @@ import { TeamPage } from '@/components/stratos/team'
 import { ActivityLogPage } from '@/components/stratos/activity'
 import { KnowledgeBasePage } from '@/components/stratos/knowledge'
 import { SettingsPage } from '@/components/stratos/settings'
+import { MeetingsPage, SocialMediaPage, MyProfilePage, OnboardingWizard } from '@/components/stratos/phase3'
 import { BrandMark } from '@/components/stratos/primitives'
 
 // Routes employees may NOT access (owner-only). Enforced here + hidden in nav + RLS-ready.
@@ -40,6 +41,9 @@ function Router({ segments }) {
     case 'team': return <TeamPage />
     case 'activity-log': return <ActivityLogPage />
     case 'knowledge-base': return <KnowledgeBasePage />
+    case 'meetings': return <MeetingsPage />
+    case 'social-media': return <SocialMediaPage />
+    case 'my-profile': return <MyProfilePage />
     case 'settings': return <SettingsPage />
     default: return <DashboardPage />
   }
@@ -87,10 +91,12 @@ function App() {
 
   if (session === undefined) return <Splash />
 
+  const needsOnboarding = session && role === 'owner' && session.agency && session.agency.setup_completed === false
+
   return (
     <AppContext.Provider value={ctx}>
       <Toaster theme="dark" position="top-right" richColors closeButton />
-      {!session ? <AuthPage /> : <AppShell><Router segments={segments} /></AppShell>}
+      {!session ? <AuthPage /> : needsOnboarding ? <OnboardingWizard /> : <AppShell><Router segments={segments} /></AppShell>}
     </AppContext.Provider>
   )
 }

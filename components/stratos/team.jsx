@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { useApp } from '@/lib/appContext'
-import { staffService, taskService, projectService, activityService, authService } from '@/lib/services'
+import { staffService, taskService, projectService, activityService, authService, notifyTaskAssigned } from '@/lib/services'
 import { GlowCard, StatusPill, PageHeader, EmptyState, CardSkeleton } from './primitives'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -81,11 +81,17 @@ export function TeamPage() {
   const doAssign = async () => {
     if (!task.title || !task.project_id) { toast.error('Pick a project and task title'); return }
     const proj = projects.find((p) => p.id === task.project_id)
-    await taskService.create({ project_id: task.project_id, project_name: proj?.name || '', title: task.title, priority: task.priority, deadline: task.deadline, assigned_to: assignFor.id, assigned_to_name: assignFor.full_name, status: 'pending', progress: 0 })
-    // ensure staff is on project team
+    const created = await taskService.create({ project_id: task.project_id, project_name: proj?.name || '', title: task.title, priority: task.priority, deadline: task.deadline, assigned_to: assignFor.id, assigned_to_name: assignFor.full_name, status: 'pending', progress: 0 })
     if (proj && !(proj.team || []).includes(assignFor.id)) await projectService.update(proj.id, { team: [...(proj.team || []), assignFor.id] })
+    await notifyTaskAssigned(assignFor.id, created)
     await activityService.log('Assigned task', task.title, `${task.title} → ${assignFor.full_name}`)
     toast.success(`Task assigned to ${assignFor.full_name}`); setAssignFor(null); setTask({ project_id: '', title: '', priority: 'Medium', deadline: '' }); load()
+  }
+  const toggleStatus = async (s) => {
+    const next = s.status === 'inactive' ? 'active' : 'inactive'
+    await staffService.update(s.id, { status: next, online: next === 'inactive' ? false : s.online })
+    await activityService.log(next === 'inactive' ? 'Deactivated staff' : 'Activated staff', 'Staff', `${s.full_name} (${s.employee_id})`)
+    toast.success(next === 'inactive' ? 'Employee deactivated' : 'Employee activated'); load()
   }
 
   const completion = (id) => { const t = tasks.filter((x) => x.assigned_to === id); if (!t.length) return 0; return Math.round((t.filter((x) => x.status === 'completed').length / t.length) * 100) }
@@ -105,7 +111,7 @@ export function TeamPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12 border border-white/10"><AvatarImage src={s.avatar_url} /><AvatarFallback className="bg-gradient-to-br from-blue-500 to-violet-600 text-white">{initials(s.full_name)}</AvatarFallback></Avatar>
-                    <div><div className="font-medium leading-tight">{s.full_name}</div><div className="text-xs text-muted-foreground">{s.employee_id} · {s.role}</div>
+                    <div><div className="flex items-center gap-2"><span className="font-medium leading-tight">{s.full_name}</span><StatusPill status={s.status === 'inactive' ? 'inactive' : 'active'} /></div><div className="text-xs text-muted-foreground">{s.employee_id} · {s.role}</div>
                       <div className="mt-1 inline-flex items-center gap-1 text-[11px]"><Circle className={`h-2 w-2 ${s.online ? 'fill-emerald-400 text-emerald-400' : 'fill-slate-500 text-slate-500'}`} />{s.online ? 'Online' : `Last active ${fmtRelative(s.last_active)}`}</div></div>
                   </div>
                   <DropdownMenu>
@@ -114,6 +120,7 @@ export function TeamPage() {
                       <DropdownMenuItem onClick={() => openEdit(s)}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => { setResetFor(s); setNewPass('') }}><KeyRound className="mr-2 h-4 w-4" />Reset Password</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setAssignFor(s)}><ClipboardPlus className="mr-2 h-4 w-4" />Assign Task</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleStatus(s)}><Circle className="mr-2 h-4 w-4" />{s.status === 'inactive' ? 'Activate Staff' : 'Deactivate Staff'}</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setToDelete(s)} className="text-red-300 focus:text-red-300"><Trash2 className="mr-2 h-4 w-4" />Delete Staff</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

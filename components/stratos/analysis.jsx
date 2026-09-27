@@ -184,7 +184,16 @@ export function AnalysisPage({ analysisId }) {
 export function AnalysisHistoryPage() {
   const { navigate } = useApp()
   const [rows, setRows] = useState(null)
-  useEffect(() => { analysisService.list().then(setRows).catch(() => setRows([])) }, [])
+  const [reports, setReports] = useState([])
+  useEffect(() => {
+    analysisService.list().then(setRows).catch(() => setRows([]))
+    reportService.list().then(setReports).catch(() => {})
+  }, [])
+  const openReport = (a) => {
+    const rep = reports.find((r) => r.analysis_id === a.id)
+    if (rep) navigate(`/reports/${rep.id}`)
+    else { toast.info('No stored report for this analysis yet'); navigate('/reports') }
+  }
   return (
     <div className="space-y-6">
       <PageHeader icon={History} title="Analysis History" subtitle="Review every multi-agent analysis run across your clients." />
@@ -195,7 +204,7 @@ export function AnalysisHistoryPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-muted-foreground"><th className="px-6 py-3 font-medium">Client</th><th className="hidden px-6 py-3 font-medium sm:table-cell">Date</th><th className="hidden px-6 py-3 font-medium md:table-cell">Agents</th><th className="px-6 py-3 font-medium">Status</th><th className="hidden px-6 py-3 font-medium lg:table-cell">Duration</th><th className="px-6 py-3" /></tr></thead>
-              <tbody>{rows.map((a) => (<tr key={a.id} className="border-b border-white/5 transition hover:bg-white/[0.02]"><td className="px-6 py-3.5 font-medium">{a.client_name || 'Client'}</td><td className="hidden px-6 py-3.5 text-muted-foreground sm:table-cell">{fmtDate(a.created_at)}</td><td className="hidden px-6 py-3.5 text-muted-foreground md:table-cell">{a.agents_used || 0}</td><td className="px-6 py-3.5"><StatusPill status={a.status} /></td><td className="hidden px-6 py-3.5 text-muted-foreground lg:table-cell"><span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{fmtDuration(a.duration_seconds)}</span></td><td className="px-6 py-3.5 text-right"><Button variant="ghost" size="sm" className="text-primary" onClick={() => navigate(`/analysis/${a.id}`)}>Open</Button></td></tr>))}</tbody>
+              <tbody>{rows.map((a) => (<tr key={a.id} className="border-b border-white/5 transition hover:bg-white/[0.02]"><td className="px-6 py-3.5 font-medium">{a.client_name || 'Client'}</td><td className="hidden px-6 py-3.5 text-muted-foreground sm:table-cell">{fmtDate(a.created_at)}</td><td className="hidden px-6 py-3.5 text-muted-foreground md:table-cell">{a.agents_used || 0}</td><td className="px-6 py-3.5"><StatusPill status={a.status} /></td><td className="hidden px-6 py-3.5 text-muted-foreground lg:table-cell"><span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{fmtDuration(a.duration_seconds)}</span></td><td className="px-6 py-3.5 text-right"><Button variant="ghost" size="sm" className="text-primary" onClick={() => openReport(a)}>View Report</Button></td></tr>))}</tbody>
             </table>
           </div>
         )}

@@ -129,7 +129,7 @@ export function ProjectDetailPage({ projectId }) {
       <div>
         <h2 className="mb-3 font-display text-lg font-semibold">Tasks</h2>
         {visibleTasks.length === 0 ? <EmptyState icon={FolderKanban} title="No tasks" description={role === 'employee' ? 'No tasks assigned to you on this project.' : 'Assign tasks to staff from the Team page.'} /> : (
-          <div className="space-y-3">{visibleTasks.map((t) => <TaskCard key={t.id} task={t} editable={role === 'employee' ? t.assigned_to === user.id : true} onChanged={load} />)}</div>
+          <div className="space-y-3">{visibleTasks.map((t) => <TaskCard key={t.id} task={t} editable={role === 'employee' && t.assigned_to === user.id} onChanged={load} />)}</div>
         )}
       </div>
     </div>

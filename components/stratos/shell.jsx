@@ -17,6 +17,8 @@ import {
   BookOpen, Settings, PanelLeftClose, PanelLeft, Search, Bell, LogOut, ChevronDown, Menu, ScrollText, ClipboardList,
 } from 'lucide-react'
 import { initials } from '@/lib/format'
+import { NotificationsBell } from './phase3'
+import { Video, Rocket, UserCircle, ClipboardList as ClipIcon } from 'lucide-react'
 
 const NAV_OWNER = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
@@ -26,8 +28,11 @@ const NAV_OWNER = [
   { label: 'Reports', icon: FileText, to: '/reports' },
   { label: 'Projects', icon: FolderKanban, to: '/projects' },
   { label: 'Team / Staff', icon: UsersRound, to: '/team' },
+  { label: 'Meetings', icon: Video, to: '/meetings' },
   { label: 'Knowledge Base', icon: BookOpen, to: '/knowledge-base' },
   { label: 'Activity Log', icon: ScrollText, to: '/activity-log' },
+  { label: 'Social Media', icon: Rocket, to: '/social-media' },
+  { label: 'My Profile', icon: UserCircle, to: '/my-profile' },
   { label: 'Settings', icon: Settings, to: '/settings' },
 ]
 const NAV_EMPLOYEE = [
@@ -36,7 +41,7 @@ const NAV_EMPLOYEE = [
   { label: 'My Tasks', icon: ClipboardList, to: '/tasks' },
   { label: 'Reports', icon: FileText, to: '/reports' },
   { label: 'Knowledge Base', icon: BookOpen, to: '/knowledge-base' },
-  { label: 'Settings', icon: Settings, to: '/settings' },
+  { label: 'My Profile', icon: UserCircle, to: '/my-profile' },
 ]
 
 function NavList({ collapsed, onNavigate }) {
@@ -115,7 +120,7 @@ function Topbar({ onOpenMobile }) {
         <Input placeholder="Search clients, projects, reports..." className="h-9 border-white/10 bg-white/[0.03] pl-9 focus-visible:ring-primary/40" />
       </div>
       <div className="ml-auto flex items-center gap-1.5">
-        <Button variant="ghost" size="icon" className="relative text-muted-foreground"><Bell className="h-5 w-5" /><span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-blue-400" /></Button>
+        <NotificationsBell />
         {role !== 'employee' && <Button onClick={() => navigate('/clients/new')} className="hidden bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:opacity-90 sm:inline-flex"><Sparkles className="mr-2 h-4 w-4" /> New Analysis</Button>}
       </div>
     </header>

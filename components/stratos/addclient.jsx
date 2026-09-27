@@ -42,13 +42,34 @@ export function AddClientPage({ editId }) {
   const toggle = (k, v) => setForm((f) => ({ ...f, [k]: f[k].includes(v) ? f[k].filter((x) => x !== v) : [...f[k], v] }))
 
   useEffect(() => {
-    if (editId) clientService.get(editId).then((c) => { if (c) setForm({ ...EMPTY, ...c }); setLoaded(true) }).catch(() => setLoaded(true))
+    if (editId) clientService.get(editId).then((c) => {
+      if (c) {
+        const clean = {}
+        Object.keys(EMPTY).forEach((k) => {
+          const v = c[k]
+          clean[k] = v == null ? (Array.isArray(EMPTY[k]) ? [] : '') : v
+        })
+        setForm({ ...EMPTY, ...clean, status: c.status || 'pending' })
+      }
+      setLoaded(true)
+    }).catch(() => setLoaded(true))
   }, [editId])
 
   const canNext = step === 0 ? form.business_name.trim() : true
 
+  // Phase 3: send explicit NULL for any empty optional field so the AI agents
+  // know the data is genuinely missing (not just skipped/omitted).
+  const OPTIONAL_TEXT = ['industry', 'website_url', 'instagram_url', 'facebook_url', 'google_business_url', 'target_location', 'business_description', 'target_audience']
+  const OPTIONAL_ARRAY = ['business_goals', 'current_channels']
+  const normalize = (data) => {
+    const out = { ...data, business_name: (data.business_name || '').trim() }
+    OPTIONAL_TEXT.forEach((k) => { const v = typeof out[k] === 'string' ? out[k].trim() : out[k]; out[k] = v ? v : null })
+    OPTIONAL_ARRAY.forEach((k) => { out[k] = Array.isArray(out[k]) && out[k].length ? out[k] : null })
+    return out
+  }
+
   const persist = async (status) => {
-    const payload = { ...form, status }
+    const payload = { ...normalize(form), status }
     if (editId) return clientService.update(editId, payload)
     return clientService.create(payload)
   }

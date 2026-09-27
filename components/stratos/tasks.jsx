@@ -8,6 +8,7 @@ import { GlowCard, StatusPill, PageHeader, EmptyState, RowSkeleton } from './pri
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { ClipboardList, Flag, CalendarClock, CheckCircle2 } from 'lucide-react'
 import { fmtDate } from '@/lib/format'
 
@@ -24,19 +25,24 @@ export async function recalcProject(projectId) {
 
 const PROGRESS = [0, 25, 50, 75, 100]
 
-// A single editable task card. `editable` = employee/owner can update progress.
+// Editable task card with work notes + audit history. Only the assigned
+// employee can change progress; owner sees progress + latest note (read-only).
 export function TaskCard({ task, editable, onChanged }) {
-  const { userName } = useApp()
   const [busy, setBusy] = useState(false)
-  const update = async (progress) => {
+  const [progress, setProgress] = useState(task.progress || 0)
+  const [note, setNote] = useState('')
+  const update = async () => {
     setBusy(true)
     const status = progress >= 100 ? 'completed' : progress > 0 ? 'in_progress' : 'pending'
+    const entry = { progress, note: note.trim(), created_at: new Date().toISOString() }
     try {
-      await taskService.update(task.id, { progress, status })
+      const updates = [entry, ...(task.updates || [])]
+      await taskService.update(task.id, { progress, status, last_note: note.trim() || task.last_note, last_updated: entry.created_at, updates })
       await recalcProject(task.project_id)
-      await activityService.log(status === 'completed' ? 'Completed task' : 'Updated task', task.title, `${task.title} → ${progress}%`)
+      if (note.trim()) await activityService.log('Added task note', task.title, note.trim().slice(0, 60))
+      await activityService.log(status === 'completed' ? 'Completed task' : 'Updated task progress', task.title, `${task.title} → ${progress}%`)
       toast.success(status === 'completed' ? 'Task completed' : `Progress updated to ${progress}%`)
-      onChanged?.()
+      setNote(''); onChanged?.()
     } catch (e) { toast.error('Could not update task') } finally { setBusy(false) }
   }
   return (
@@ -51,16 +57,22 @@ export function TaskCard({ task, editable, onChanged }) {
           <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" />{fmtDate(task.deadline)}</span>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-3">
-        <Progress value={task.progress || 0} className="h-1.5 flex-1 bg-white/10" />
-        <span className="w-9 text-right text-xs">{task.progress || 0}%</span>
-        {editable && (
-          <Select disabled={busy} value={String(task.progress || 0)} onValueChange={(v) => update(Number(v))}>
-            <SelectTrigger className="h-8 w-24 input-dark"><SelectValue /></SelectTrigger>
-            <SelectContent>{PROGRESS.map((p) => <SelectItem key={p} value={String(p)}>{p}%</SelectItem>)}</SelectContent>
-          </Select>
-        )}
-      </div>
+      <div className="mt-3 flex items-center gap-3"><Progress value={task.progress || 0} className="h-1.5 flex-1 bg-white/10" /><span className="w-9 text-right text-xs">{task.progress || 0}%</span></div>
+      {editable ? (
+        <div className="mt-3 space-y-2 rounded-lg border border-white/10 bg-background/40 p-3">
+          <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Progress</span>
+            <Select disabled={busy} value={String(progress)} onValueChange={(v) => setProgress(Number(v))}><SelectTrigger className="h-8 w-24 input-dark"><SelectValue /></SelectTrigger><SelectContent>{PROGRESS.map((p) => <SelectItem key={p} value={String(p)}>{p}%</SelectItem>)}</SelectContent></Select>
+          </div>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Work completed / notes..." className="input-dark min-h-[64px] text-sm" />
+          <Button size="sm" disabled={busy} onClick={update} className="bg-gradient-to-r from-blue-500 to-violet-600 text-white">Update Task</Button>
+        </div>
+      ) : (task.last_note || (task.updates || []).length > 0) ? (
+        <div className="mt-3 rounded-lg border border-white/10 bg-background/40 p-3 text-xs">
+          <div className="font-medium text-foreground/80">Employee update</div>
+          <div className="mt-1 text-muted-foreground">{task.last_note || (task.updates || [])[0]?.note || '—'}</div>
+          {task.last_updated && <div className="mt-1 text-[11px] text-muted-foreground/60">Last updated {fmtDate(task.last_updated)}</div>}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -86,7 +98,7 @@ export function TasksPage() {
               <div className="mb-3 flex items-center justify-between"><h3 className="font-display text-sm font-semibold">{label}</h3><span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-muted-foreground">{groups[k].length}</span></div>
               <div className="space-y-3">
                 {groups[k].length === 0 ? <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-muted-foreground">Nothing here</div> :
-                  groups[k].map((t) => <TaskCard key={t.id} task={t} editable={role === 'employee' || role === 'owner'} onChanged={load} />)}
+                  groups[k].map((t) => <TaskCard key={t.id} task={t} editable={role === 'employee'} onChanged={load} />)}
               </div>
             </div>
           ))}

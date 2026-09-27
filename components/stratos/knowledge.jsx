@@ -3,20 +3,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { knowledgeService, dataMode } from '@/lib/services'
+import { useApp } from '@/lib/appContext'
+import { knowledgeService, activityService, dataMode } from '@/lib/services'
+import { generateDocumentPDF } from '@/lib/pdf'
 import { GlowCard, PageHeader, EmptyState, CardSkeleton } from './primitives'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-import { BookOpen, Search, Upload, FileText, Loader2, FolderOpen } from 'lucide-react'
+import { BookOpen, Search, Upload, FileText, Loader2, FolderOpen, Eye, Download, Trash2, FileDown, ExternalLink, Lock } from 'lucide-react'
 import { fmtDate } from '@/lib/format'
 
 const CATEGORIES = ['Marketing Frameworks', 'SEO Guidelines', 'Advertising', 'Branding', 'Agency SOPs', 'Case Studies', 'Templates']
 
 export function KnowledgeBasePage() {
+  const { role } = useApp()
+  const isOwner = role === 'owner'
   const [docs, setDocs] = useState(null)
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('all')
@@ -24,11 +29,12 @@ export function KnowledgeBasePage() {
   const [form, setForm] = useState({ title: '', description: '', category: 'Templates' })
   const [file, setFile] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [reader, setReader] = useState(null)
   const fileRef = useRef(null)
   const load = () => knowledgeService.list().then(setDocs).catch(() => setDocs([]))
   useEffect(() => { load() }, [])
 
-  const filtered = (docs || []).filter((d) => (cat === 'all' || d.category === cat) && (!q || d.title?.toLowerCase().includes(q.toLowerCase())))
+  const filtered = (docs || []).filter((d) => (cat === 'all' || d.category === cat) && (!q || d.title?.toLowerCase().includes(q.toLowerCase()) || d.description?.toLowerCase().includes(q.toLowerCase())))
 
   const upload = async () => {
     if (!form.title && !file) { toast.error('Add a title or choose a file'); return }
@@ -36,14 +42,20 @@ export function KnowledgeBasePage() {
     try {
       if (file) await knowledgeService.upload(file, form)
       else await knowledgeService.create({ ...form, file_url: '#' })
+      activityService.log('Uploaded document', form.title || file?.name || 'Document')
       toast.success('Document uploaded'); setOpen(false); setForm({ title: '', description: '', category: 'Templates' }); setFile(null); load()
     } catch (e) { toast.error(e?.message || 'Upload failed') } finally { setSaving(false) }
+  }
+
+  const remove = async (d) => {
+    try { await knowledgeService.remove(d.id); activityService.log('Deleted document', d.title); toast.success('Document deleted'); load() }
+    catch (e) { toast.error('Could not delete document') }
   }
 
   return (
     <div className="space-y-6">
       <PageHeader icon={BookOpen} title="Knowledge Base" subtitle="Central library of frameworks, SOPs and templates for your agency."
-        actions={
+        actions={isOwner ? (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:opacity-90"><Upload className="mr-2 h-4 w-4" />Upload Document</Button></DialogTrigger>
             <DialogContent className="border-white/10 bg-popover">
@@ -57,13 +69,16 @@ export function KnowledgeBasePage() {
                     <Upload className="h-4 w-4" />{file ? file.name : 'Choose a file to upload'}
                   </button>
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                  {dataMode === 'demo' && <p className="text-[11px] text-amber-200/70">Demo mode stores metadata only. Connect Supabase Storage to store real files.</p>}
+                  <p className="text-[11px] text-muted-foreground/70">Text files (.txt, .md, .csv, .json) are previewed in the built-in reader. Any document can be exported as a branded PDF.</p>
+                  {dataMode === 'demo' && <p className="text-[11px] text-amber-200/70">Demo mode stores document text &amp; metadata locally. Connect Supabase Storage to persist original binary files.</p>}
                 </div>
               </div>
               <DialogFooter><Button onClick={upload} disabled={saving} className="bg-gradient-to-r from-blue-500 to-violet-600 text-white">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}Upload</Button></DialogFooter>
             </DialogContent>
           </Dialog>
-        } />
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-muted-foreground"><Eye className="h-3.5 w-3.5" />Read-only access</span>
+        )} />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search documents..." className="h-10 input-dark pl-9" /></div>
@@ -74,23 +89,81 @@ export function KnowledgeBasePage() {
       </div>
 
       {docs === null ? <CardSkeleton count={6} className="sm:grid-cols-2 lg:grid-cols-3" /> : filtered.length === 0 ? (
-        <EmptyState icon={FolderOpen} title="No documents" description="Upload frameworks, SOPs and templates to build your knowledge base." />
+        <EmptyState icon={FolderOpen} title="No documents" description={isOwner ? 'Upload frameworks, SOPs and templates to build your knowledge base.' : 'No documents have been shared by your agency owner yet.'} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((d, i) => (
             <motion.div key={d.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
               <GlowCard className="flex h-full flex-col p-5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-blue-300"><FileText className="h-5 w-5" /></div>
+                <div className="flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-blue-300"><FileText className="h-5 w-5" /></div>
+                  {isOwner && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-300"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                      <AlertDialogContent className="border-white/10 bg-popover">
+                        <AlertDialogHeader><AlertDialogTitle>Delete document?</AlertDialogTitle><AlertDialogDescription>&ldquo;{d.title}&rdquo; will be permanently removed from the knowledge base.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel className="border-white/15">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => remove(d)} className="bg-red-500/90 text-white hover:bg-red-500">Delete</AlertDialogAction></AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
                 <h3 className="mt-4 font-display font-semibold">{d.title}</h3>
-                <p className="mt-1 line-clamp-2 flex-1 text-sm text-muted-foreground">{d.description}</p>
+                <p className="mt-1 line-clamp-2 flex-1 text-sm text-muted-foreground">{d.description || 'No description provided.'}</p>
                 <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-muted-foreground"><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">{d.category}</span><span>{fmtDate(d.created_at)}</span></div>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" className="h-8 flex-1 border-white/15 text-xs" onClick={() => setReader(d)}><Eye className="mr-1.5 h-3.5 w-3.5" />Read</Button>
+                  <Button size="sm" variant="outline" className="h-8 flex-1 border-white/15 text-xs" onClick={() => { generateDocumentPDF(d, d.text_content); activityService.log('Downloaded document', d.title) }}><FileDown className="mr-1.5 h-3.5 w-3.5" />PDF</Button>
+                </div>
               </GlowCard>
             </motion.div>
           ))}
         </div>
       )}
       <p className="text-center text-xs text-muted-foreground/60">RAG-powered semantic search will be enabled in a future phase.</p>
+
+      <DocumentReader doc={reader} onClose={() => setReader(null)} />
     </div>
+  )
+}
+
+function DocumentReader({ doc, onClose }) {
+  if (!doc) return null
+  const hasText = !!(doc.text_content && String(doc.text_content).trim())
+  const hasFile = doc.file_url && doc.file_url !== '#'
+  const isPdf = (doc.mime_type || '').includes('pdf') || /\.pdf$/i.test(doc.file_name || '')
+  return (
+    <Dialog open={!!doc} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-3xl border-white/10 bg-popover">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-blue-300" />{doc.title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">{doc.category}</span>
+          <span>{fmtDate(doc.created_at)}</span>
+          {doc.file_name && <span className="truncate">· {doc.file_name}</span>}
+        </div>
+        {doc.description && <p className="text-sm text-muted-foreground">{doc.description}</p>}
+        <div className="mt-1 max-h-[52vh] overflow-auto rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          {hasText ? (
+            <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-foreground/90">{doc.text_content}</pre>
+          ) : hasFile && isPdf ? (
+            <iframe src={doc.file_url} title={doc.title} className="h-[48vh] w-full rounded-md bg-white" />
+          ) : (
+            <div className="py-8 text-center">
+              <Lock className="mx-auto h-8 w-8 text-muted-foreground/50" />
+              <p className="mt-3 text-sm text-muted-foreground">No inline preview is available for this file type.</p>
+              <p className="text-xs text-muted-foreground/70">Use the PDF export below, or open the original file if stored.</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter className="gap-2 sm:justify-between">
+          {hasFile ? (
+            <Button variant="outline" className="border-white/15" onClick={() => window.open(doc.file_url, '_blank')}><ExternalLink className="mr-2 h-4 w-4" />Open original</Button>
+          ) : <span />}
+          <Button className="bg-gradient-to-r from-blue-500 to-violet-600 text-white" onClick={() => { generateDocumentPDF(doc, doc.text_content); activityService.log('Downloaded document', doc.title) }}><Download className="mr-2 h-4 w-4" />Download PDF</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
