@@ -101,3 +101,98 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "STRATOS — modular 11-agent architecture + Gemini-ready provider abstraction (mock preserved), plus Owner Google OAuth activation and Owner avatar. Backend focus: new /api/agents endpoints that expose the agent registry and run agents/workflow with the Mock provider."
+
+backend:
+  - task: "GET /api/agents returns registry metadata + workflow stages"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint. Should return count=11 agents (ids: ceo, business, competitor, seo, analytics, ads, opportunity, marketing, campaign, risk, project_manager), totalStages=12, and 7 workflow stages. Verifies the whole modular agent tree imports server-side."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASSED - Endpoint returns HTTP 200 with correct structure: count=11, totalStages=12, agents array with all 11 expected IDs (ceo, business, competitor, seo, analytics, ads, opportunity, marketing, campaign, risk, project_manager), workflow array with 7 stages. All agent metadata includes required fields (id, name, displayName, description, version, enabled=true, capabilities array). Modular agent tree imports successfully server-side."
+  - task: "POST /api/agents/run { agentId } runs a single agent (Mock provider)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Should return mode=single with a standardized AgentResult (status=completed, schemaValid=true, metadata.provider=mock). Try agentId 'seo' and 'ceo'. Unknown agentId should 500 with an error message."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASSED - Tested with agentId='seo': returns HTTP 200, mode='single', result.status='completed', result.agentName='SEOAgent', metadata.provider='mock', metadata.schemaValid=true, non-empty summary. Tested with agentId='ceo': returns HTTP 200, mode='single', result.status='completed', result.agentName='CEOAgent'. Tested with agentId='does_not_exist': returns HTTP 500 with error message 'Unknown agent: does_not_exist'. All scenarios working correctly."
+  - task: "POST /api/agents/run {} runs the full 12-stage workflow (Mock provider)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Should return mode=workflow with events including analysis_started + analysis_completed and 12 agent_completed/agent_failed events, and results array of 12 entries (all status=completed with Mock provider). Research layer (business,competitor,seo,analytics,ads,opportunity) runs in parallel."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASSED - Endpoint returns HTTP 200 with mode='workflow'. Events array contains 38 events including 'analysis_started' and 'analysis_completed' types. Results array has exactly 12 entries (CEO runs twice - framing + final review). All 12 results have status='completed' as expected with Mock provider. durationMs=4 (number). Full workflow executes successfully with parallel research layer."
+  - task: "GET /api/ base health endpoint still works"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "GET /api/ (no agents path) should still return { status: 'ok', service: 'STRATOS' }."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASSED - Health endpoint returns HTTP 200 with status='ok', service='STRATOS', phase=3. Base endpoint working correctly."
+
+frontend:
+  - task: "Owner Google OAuth login card (activates with Supabase configured)"
+    implemented: true
+    working: true
+    file: "components/stratos/auth.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Verified via screenshots: Owner card shows 'Continue with Google' (G logo), no email/password/forgot; click generates correct Supabase PKCE authorize URL. Employee login unchanged. Full Google consent+callback must be verified by user on live preview (sandbox has no internet)."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.1"
+  test_sequence: 2
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "GET /api/agents returns registry metadata + workflow stages"
+    - "POST /api/agents/run { agentId } runs a single agent (Mock provider)"
+    - "POST /api/agents/run {} runs the full 12-stage workflow (Mock provider)"
+    - "GET /api/ base health endpoint still works"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Please test ONLY the new backend endpoints in app/api/[[...path]]/route.js: GET /api/agents, POST /api/agents/run (single agent + full workflow), and GET /api/ health. These validate the new modular 11-agent architecture imports and runs server-side with the Mock provider. No auth is required for these endpoints. Do not test the frontend."
+    -agent: "testing"
+    -message: "✅ ALL BACKEND TESTS PASSED (6/6). Tested all new agent endpoints: (1) GET /api/agents returns correct registry with 11 agents, 12 stages, 7 workflow stages; (2) POST /api/agents/run with agentId='seo' and 'ceo' both return completed results with mock provider; (3) Unknown agentId correctly returns 500 error; (4) Full workflow execution returns 12 completed results with proper events; (5) Health endpoint working. The entire modular 11-agent architecture (lib/agents/**, lib/orchestration/**, lib/gemini/**) imports and runs successfully server-side with Mock provider. No issues found."

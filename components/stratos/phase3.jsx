@@ -197,6 +197,13 @@ function OwnerProfile() {
     <div className="space-y-6">
       <PageHeader icon={User} title="My Profile" subtitle="Your owner and agency information." />
       <GlowCard hover={false} className="p-6">
+        <div className="mb-5 flex items-center gap-4">
+          <Avatar className="h-16 w-16 border border-white/10"><AvatarImage src={agency?.owner_avatar_url || profile?.avatar_url} referrerPolicy="no-referrer" /><AvatarFallback className="bg-gradient-to-br from-blue-500 to-violet-600 text-lg text-white">{initials(form.owner_name || profile?.full_name || 'U')}</AvatarFallback></Avatar>
+          <div>
+            <div className="font-display text-lg font-semibold">{form.owner_name || profile?.full_name}</div>
+            <div className="text-sm text-muted-foreground">{form.owner_email || profile?.email} · Owner</div>
+          </div>
+        </div>
         <h3 className="mb-4 font-display font-semibold">Owner Information</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <FF label="Full Name"><Input value={form.owner_name || ''} onChange={set('owner_name')} className="input-dark" /></FF>

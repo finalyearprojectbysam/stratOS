@@ -1,0 +1,20 @@
+{
+  "_note": "DEV FIXTURE ONLY — no real/private client data. Used to test the Analytics agent independently.",
+  "agencyId": "agency_demo",
+  "clientId": "client_demo",
+  "analysisId": "analysis_demo",
+  "clientData": {
+    "businessName": "XYZ Academy",
+    "industry": "Education",
+    "websiteUrl": "https://xyzacademy.example",
+    "instagramUrl": null,
+    "facebookUrl": null,
+    "googleBusinessUrl": null,
+    "targetLocation": "Coimbatore",
+    "businessDescription": "Coaching academy for competitive exams.",
+    "targetAudience": "Students & parents",
+    "businessGoals": ["Website Traffic"],
+    "currentChannels": null
+  },
+  "previousResults": []
+}

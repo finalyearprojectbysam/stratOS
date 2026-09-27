@@ -1,0 +1,20 @@
+{
+  "_note": "DEV FIXTURE ONLY — no real/private client data. Used to test the Competitor agent independently.",
+  "agencyId": "agency_demo",
+  "clientId": "client_demo",
+  "analysisId": "analysis_demo",
+  "clientData": {
+    "businessName": "Glow Salon",
+    "industry": "Beauty",
+    "websiteUrl": "https://glowsalon.example",
+    "instagramUrl": null,
+    "facebookUrl": null,
+    "googleBusinessUrl": null,
+    "targetLocation": "Madurai",
+    "businessDescription": "Full-service beauty & wellness salon.",
+    "targetAudience": "Women 20-45",
+    "businessGoals": ["Customer Retention"],
+    "currentChannels": null
+  },
+  "previousResults": []
+}

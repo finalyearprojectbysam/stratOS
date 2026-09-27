@@ -1,0 +1,20 @@
+{
+  "_note": "DEV FIXTURE ONLY — no real/private client data. Used to test the SEO agent independently.",
+  "agencyId": "agency_demo",
+  "clientId": "client_demo",
+  "analysisId": "analysis_demo",
+  "clientData": {
+    "businessName": "ABC Fitness",
+    "industry": "Fitness",
+    "websiteUrl": "https://abcfitness.example",
+    "instagramUrl": null,
+    "facebookUrl": null,
+    "googleBusinessUrl": null,
+    "targetLocation": "Chennai",
+    "businessDescription": "Premium boutique fitness studio.",
+    "targetAudience": "Urban professionals 25-40",
+    "businessGoals": ["Lead Generation", "Local Visibility"],
+    "currentChannels": null
+  },
+  "previousResults": []
+}

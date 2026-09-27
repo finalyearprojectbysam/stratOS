@@ -9,7 +9,8 @@ import { statsService, staffService, taskService } from '@/lib/services'
 import { StatCard, GlowCard, StatusPill, EmptyState, CardSkeleton, RowSkeleton } from './primitives'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { fmtRelative, fmtDuration, fmtDate } from '@/lib/format'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { fmtRelative, fmtDuration, fmtDate, initials } from '@/lib/format'
 import { TodaysMeetings } from './phase3'
 import {
   Users, Activity, FileText, FolderCheck, Sparkles, ArrowRight, Hash, Copy, Check, UsersRound,
@@ -46,9 +47,12 @@ function OwnerDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-semibold tracking-tight">{greeting}, <span className="text-gradient">{name}</span></h1>
-          <p className="mt-1.5 text-muted-foreground">Here&apos;s what&apos;s happening across your agency.</p>
+        <div className="flex items-center gap-4">
+          <Avatar className="h-14 w-14 border border-white/10"><AvatarImage src={agency?.owner_avatar_url || profile?.avatar_url} referrerPolicy="no-referrer" /><AvatarFallback className="bg-gradient-to-br from-blue-500 to-violet-600 text-white">{initials(profile?.full_name || 'U')}</AvatarFallback></Avatar>
+          <div>
+            <h1 className="font-display text-3xl font-semibold tracking-tight">{greeting}, <span className="text-gradient">{name}</span></h1>
+            <p className="mt-1.5 text-muted-foreground">Here&apos;s what&apos;s happening across your agency.</p>
+          </div>
         </div>
         <Button onClick={() => navigate('/clients/new')} className="bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:opacity-90"><Sparkles className="mr-2 h-4 w-4" /> New Client Analysis</Button>
       </div>
