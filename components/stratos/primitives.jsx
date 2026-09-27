@@ -166,7 +166,7 @@ export function BrandMark({ size = 36, withText = true, collapsed = false }) {
       </div>
       {withText && !collapsed && (
         <div className="leading-none">
-          <div className="font-display text-sm font-bold tracking-wide">MARCA STRATOS</div>
+          <div className="font-display text-base font-bold tracking-[0.2em]">STRATOS</div>
           <div className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">AI Marketing Intelligence</div>
         </div>
       )}

@@ -2,7 +2,7 @@ import './globals.css'
 import { Providers } from './providers'
 
 export const metadata = {
-  title: 'MARCA STRATOS — AI Marketing Intelligence Platform',
+  title: 'STRATOS — AI Marketing Intelligence Platform',
   description: 'AI-Powered Marketing Intelligence. Analyze businesses, discover opportunities and build strategies with specialized AI agents.',
 }
 
