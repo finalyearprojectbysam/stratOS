@@ -4,19 +4,32 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useApp } from '@/lib/appContext'
+import { isSupabaseConfigured } from '@/lib/supabaseClient'
 import { BrandMark } from './primitives'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { Loader2, Mail, Lock, User, Building2, ArrowRight, ArrowLeft, Crown, IdCard, Hash, Users } from 'lucide-react'
+import { Loader2, Mail, Lock, User, Building2, ArrowRight, ArrowLeft, Crown, IdCard, Hash, Users, ShieldCheck } from 'lucide-react'
+
+// Authentic multi-color Google "G" mark.
+function GoogleG({ className = 'h-5 w-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  )
+}
 
 const BG = 'https://images.unsplash.com/photo-1653549893012-b8b4fbe97630?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwxfHxuZXVyYWwlMjBuZXR3b3JrfGVufDB8fHxibHVlfDE3OTA0Nzg3ODZ8MA&ixlib=rb-4.1.0&q=85'
 const PILLS = ['Business Intelligence', 'Competitor Research', 'SEO Analysis', 'Ads Strategy', 'Campaign Planning', 'Risk Analysis']
 
 export function AuthPage() {
-  const { ownerSignIn, ownerSignUp, employeeSignIn, resetPassword, refreshSession } = useApp()
+  const { ownerSignIn, ownerSignUp, employeeSignIn, resetPassword, refreshSession, signInWithGoogle } = useApp()
   const [role, setRole] = useState(null) // null | 'owner' | 'employee'
   const [mode, setMode] = useState('login') // owner: login|signup|forgot
   const [loading, setLoading] = useState(false)
@@ -40,6 +53,14 @@ export function AuthPage() {
       toast.success('Welcome back to STRATOS')
       await refreshSession()
     } catch (err) { toast.error(err?.message || 'Login failed') } finally { setLoading(false) }
+  }
+
+  const continueWithGoogle = async () => {
+    setLoading(true)
+    try {
+      await signInWithGoogle()
+      // Supabase redirects the browser to Google; nothing else to do here.
+    } catch (err) { toast.error(err?.message || 'Google sign-in failed'); setLoading(false) }
   }
 
   return (
@@ -85,25 +106,39 @@ export function AuthPage() {
               ) : role === 'owner' ? (
                 <motion.div key="owner" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}>
                   <button onClick={() => setRole(null)} className="mb-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />Change role</button>
-                  <div className="mb-5 flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /><h2 className="font-display text-2xl font-semibold">{mode === 'login' ? 'Owner sign in' : mode === 'signup' ? 'Create your agency' : 'Reset password'}</h2></div>
-                  <form onSubmit={submitOwner} className="space-y-4">
-                    {mode === 'signup' && (<>
-                      <Field id="fullName" label="Full name" icon={User} value={form.fullName} onChange={set('fullName')} placeholder="Aarav Sharma" required />
-                      <Field id="agencyName" label="Agency name" icon={Building2} value={form.agencyName} onChange={set('agencyName')} placeholder="Nova Digital" required />
-                    </>)}
-                    <Field id="email" type="email" label="Email" icon={Mail} value={form.email} onChange={set('email')} placeholder="you@agency.com" required />
-                    {mode !== 'forgot' && <Field id="password" type="password" label="Password" icon={Lock} value={form.password} onChange={set('password')} placeholder="••••••••" required />}
-                    {mode === 'login' && <div className="flex justify-end"><button type="button" onClick={() => setMode('forgot')} className="text-xs text-primary hover:underline">Forgot password?</button></div>}
-                    <Button type="submit" disabled={loading} className="h-11 w-full bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:opacity-90">
-                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Agency' : 'Send reset link'}<ArrowRight className="ml-2 h-4 w-4" /></>}
-                    </Button>
-                  </form>
-                  <div className="mt-6 text-center text-sm text-muted-foreground">
-                    {mode === 'login' && <>New agency? <button onClick={() => setMode('signup')} className="font-medium text-primary hover:underline">Create account</button></>}
-                    {mode === 'signup' && <>Already have an agency? <button onClick={() => setMode('login')} className="font-medium text-primary hover:underline">Sign in</button></>}
-                    {mode === 'forgot' && <button onClick={() => setMode('login')} className="inline-flex items-center font-medium text-primary hover:underline"><ArrowLeft className="mr-1 h-3.5 w-3.5" />Back to sign in</button>}
-                  </div>
-                  <Note>Demo mode — create an agency with any email &amp; password. A unique 6-digit agency code is generated automatically.</Note>
+                  <div className="mb-5 flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /><h2 className="font-display text-2xl font-semibold">Owner sign in</h2></div>
+                  {isSupabaseConfigured ? (
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">Continue with your Google account to access your agency workspace.</p>
+                      <Button type="button" onClick={continueWithGoogle} disabled={loading} className="h-12 w-full gap-3 border border-white/15 bg-white text-[15px] font-medium text-slate-800 hover:bg-white/90">
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin text-slate-500" /> : <><GoogleG /> Continue with Google</>}
+                      </Button>
+                      <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" />Secure authentication powered by Google</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"><ShieldCheck className="h-3.5 w-3.5" />Google sign-in activates once Supabase is connected. Demo email &amp; password login shown below.</div>
+                      <div className="mb-3 text-sm font-medium text-muted-foreground">{mode === 'login' ? 'Owner sign in (demo)' : mode === 'signup' ? 'Create your agency (demo)' : 'Reset password (demo)'}</div>
+                      <form onSubmit={submitOwner} className="space-y-4">
+                        {mode === 'signup' && (<>
+                          <Field id="fullName" label="Full name" icon={User} value={form.fullName} onChange={set('fullName')} placeholder="Aarav Sharma" required />
+                          <Field id="agencyName" label="Agency name" icon={Building2} value={form.agencyName} onChange={set('agencyName')} placeholder="Nova Digital" required />
+                        </>)}
+                        <Field id="email" type="email" label="Email" icon={Mail} value={form.email} onChange={set('email')} placeholder="you@agency.com" required />
+                        {mode !== 'forgot' && <Field id="password" type="password" label="Password" icon={Lock} value={form.password} onChange={set('password')} placeholder="••••••••" required />}
+                        {mode === 'login' && <div className="flex justify-end"><button type="button" onClick={() => setMode('forgot')} className="text-xs text-primary hover:underline">Forgot password?</button></div>}
+                        <Button type="submit" disabled={loading} className="h-11 w-full bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:opacity-90">
+                          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Agency' : 'Send reset link'}<ArrowRight className="ml-2 h-4 w-4" /></>}
+                        </Button>
+                      </form>
+                      <div className="mt-6 text-center text-sm text-muted-foreground">
+                        {mode === 'login' && <>New agency? <button onClick={() => setMode('signup')} className="font-medium text-primary hover:underline">Create account</button></>}
+                        {mode === 'signup' && <>Already have an agency? <button onClick={() => setMode('login')} className="font-medium text-primary hover:underline">Sign in</button></>}
+                        {mode === 'forgot' && <button onClick={() => setMode('login')} className="inline-flex items-center font-medium text-primary hover:underline"><ArrowLeft className="mr-1 h-3.5 w-3.5" />Back to sign in</button>}
+                      </div>
+                      <Note>Demo mode — create an agency with any email &amp; password. A unique 6-digit agency code is generated automatically.</Note>
+                    </>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div key="emp" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}>

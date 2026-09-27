@@ -21,6 +21,25 @@ import { fmtDate } from '@/lib/format'
 
 const CATEGORIES = ['Marketing Frameworks', 'SEO Guidelines', 'Advertising', 'Branding', 'Agency SOPs', 'Case Studies', 'Templates']
 
+// Ready-made note templates so documents look consistent across the team.
+const NOTE_TEMPLATES = {
+  SOP: `## Standard Operating Procedure\n**Purpose:** \n**Owner:** \n**Last updated:** \n\n### Steps\n1. \n2. \n3. \n\n### Notes\n- `,
+  Checklist: `## Checklist\n**Objective:** \n\n- [ ] Task one\n- [ ] Task two\n- [ ] Task three`,
+  Brief: `## Project Brief\n**Client:** \n**Objective:** \n**Deliverables:** \n\n### Background\n\n### Scope\n\n### Timeline\n`,
+}
+const insertTemplate = (current, tpl) => (current && current.trim() ? current.replace(/\s*$/, '') + '\n\n' + tpl : tpl)
+
+function TemplatePicker({ onPick }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[11px] text-muted-foreground">Insert template:</span>
+      {Object.keys(NOTE_TEMPLATES).map((k) => (
+        <button key={k} type="button" onClick={() => onPick(NOTE_TEMPLATES[k])} className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-medium text-violet-200 transition hover:bg-violet-500/20">{k}</button>
+      ))}
+    </div>
+  )
+}
+
 export function KnowledgeBasePage() {
   const { role } = useApp()
   const isOwner = role === 'owner'
@@ -67,7 +86,7 @@ export function KnowledgeBasePage() {
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Title</Label><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Local SEO Checklist" className="input-dark" /></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Description</Label><Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Short description" className="input-dark" /></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Category</Label><Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}><SelectTrigger className="input-dark"><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-1.5"><Label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="h-3 w-3 text-violet-300" />Formatted notes <span className="text-muted-foreground/60">(Markdown — # heading, **bold**, - list)</span></Label><Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={"## Overview\nKey points employees should read...\n\n- Step one\n- Step two"} className="input-dark min-h-[110px] font-mono text-[13px]" /></div>
+                <div className="space-y-1.5"><Label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="h-3 w-3 text-violet-300" />Formatted notes <span className="text-muted-foreground/60">(Markdown — # heading, **bold**, - list)</span></Label><TemplatePicker onPick={(tpl) => setForm((f) => ({ ...f, notes: insertTemplate(f.notes, tpl) }))} /><Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={"## Overview\nKey points employees should read...\n\n- Step one\n- Step two"} className="input-dark min-h-[110px] font-mono text-[13px]" /></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">File</Label>
                   <button onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-left text-sm text-muted-foreground hover:border-white/25">
                     <Upload className="h-4 w-4" />{file ? file.name : 'Choose a file to upload'}
@@ -172,6 +191,7 @@ function DocumentReader({ doc, isOwner, onClose, onSaved }) {
           {editing ? (
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="h-3 w-3 text-violet-300" />Formatted notes (Markdown)</Label>
+              <TemplatePicker onPick={(tpl) => setNotes((v) => insertTemplate(v, tpl))} />
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input-dark min-h-[220px] font-mono text-[13px]" placeholder={"## Overview\n**Key points** for the team...\n\n- First\n- Second"} />
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setNotes(doc.notes_md || '') }}><X className="mr-1.5 h-4 w-4" />Cancel</Button>

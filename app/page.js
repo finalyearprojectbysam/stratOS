@@ -86,6 +86,7 @@ function App() {
     ownerSignUp: authService.ownerSignUp,
     employeeSignIn: authService.employeeSignIn,
     resetPassword: authService.resetPassword,
+    signInWithGoogle: authService.signInWithGoogle,
     signOut,
   }), [session, role, path, navigate, refreshSession, signOut])
 

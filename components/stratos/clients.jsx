@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { useApp } from '@/lib/appContext'
-import { clientService, analysisService } from '@/lib/services'
+import { clientService, analysisService, notifyClientGaps } from '@/lib/services'
 import { GlowCard, StatusPill, PageHeader, EmptyState, RowSkeleton } from './primitives'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   Users, Search, Plus, MoreHorizontal, Eye, Pencil, Trash2, Sparkles, Globe, MapPin, Building2,
-  Instagram, Facebook, ArrowLeft, Loader2, Target as TargetIcon, AlertTriangle, CheckCircle2,
+  Instagram, Facebook, ArrowLeft, Loader2, Target as TargetIcon, AlertTriangle, CheckCircle2, Bell,
 } from 'lucide-react'
 import { fmtRelative, fmtDate } from '@/lib/format'
 
@@ -211,7 +211,10 @@ export function ClientDetailPage({ clientId }) {
           <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-300" /><h3 className="font-display font-semibold text-amber-100">Missing information ({gaps.length})</h3></div>
           <p className="mt-1 text-sm text-amber-100/70">Collect these details to give the AI agents a complete picture for a stronger analysis.</p>
           <div className="mt-3 flex flex-wrap gap-2">{gaps.map((g) => <span key={g} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">{g}</span>)}</div>
-          <Button variant="outline" className="mt-4 border-amber-500/30 text-amber-200 hover:bg-amber-500/10" onClick={() => navigate(`/clients/${client.id}/edit`)}><Pencil className="mr-2 h-4 w-4" />Complete profile</Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" className="border-amber-500/30 text-amber-200 hover:bg-amber-500/10" onClick={() => navigate(`/clients/${client.id}/edit`)}><Pencil className="mr-2 h-4 w-4" />Complete profile</Button>
+            <Button variant="ghost" className="text-amber-200 hover:bg-amber-500/10" onClick={async () => { const n = await notifyClientGaps(client, gaps); if (n) toast.success(`Nudged ${n} team member${n > 1 ? 's' : ''} to help collect the missing info`); else toast('No employees are assigned to this client yet') }}><Bell className="mr-2 h-4 w-4" />Notify assigned team</Button>
+          </div>
         </GlowCard>
       ) : (
         <GlowCard hover={false} className="border-emerald-500/20 bg-emerald-500/[0.04] p-4">

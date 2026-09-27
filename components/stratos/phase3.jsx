@@ -32,8 +32,11 @@ export function NotificationsBell() {
   const unread = items.filter((n) => !n.is_read).length
   const open = async (n) => {
     await notificationService.update(n.id, { is_read: true }); load()
-    const isMeeting = n.resource_type === 'meeting'
-    navigate(isMeeting ? (role === 'owner' ? '/meetings' : '/dashboard') : (role === 'owner' ? '/tasks' : '/tasks'))
+    let dest = '/dashboard'
+    if (n.resource_type === 'meeting') dest = role === 'owner' ? '/meetings' : '/dashboard'
+    else if (n.resource_type === 'task') dest = '/tasks'
+    else if (n.resource_type === 'client') dest = role === 'owner' ? '/clients' : '/projects'
+    navigate(dest)
   }
   return (
     <DropdownMenu onOpenChange={(o) => { if (o) { notificationService.markAllRead().then(load) } }}>
